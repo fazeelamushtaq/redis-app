@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
 mongoose.connect("mongodb://localhost:27017/my-redis")
 
+import { createClient } from "redis";
+const redisClient = createClient()
+redisClient.connect()
+
+redisClient.on('connect', () => console.log("Redis Connected successfully"))
+redisClient.on('error', () => console.log("Failed to connect with Redis"))
+
 import express from "express"
 import ProductModel from "./models/product.model.js"
 const app = express()
@@ -11,7 +18,13 @@ app.use(express.urlencoded({extended: false}))
 
 app.get("/product", async (req, res) => {
     try {
+        const productsCache = await redisClient.get("products")
+        if(productsCache) {
+                return res.json(JSON.parse(productsCache))
+        }
+        
         const products = await ProductModel.find()
+        await redisClient.setEx("products", 10, JSON.stringify(products))
         res.json(products)
         
     } catch (err) {
