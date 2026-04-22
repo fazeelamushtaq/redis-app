@@ -22,7 +22,7 @@ app.get("/product", async (req, res) => {
         if(productsCache) {
                 return res.json(JSON.parse(productsCache))
         }
-        
+
         const products = await ProductModel.find()
         await redisClient.setEx("products", 10, JSON.stringify(products))
         res.json(products)
@@ -45,6 +45,10 @@ app.post("/product", async (req, res) => {
 app.put("/product/:id", async (req, res) => {
     try {
         const product = await ProductModel.findByIdAndUpdate(req.params.id, req.body, {new: true})
+        await redisClient.del("products")
+
+        if(!product)
+            return res.status(500).json({message: "Product not found with id value"})
         res.json(product)
         
     } catch (err) {
@@ -55,6 +59,10 @@ app.put("/product/:id", async (req, res) => {
 app.delete("/product/:id", async (req, res) => {
     try {
         const product = await ProductModel.findByIdAndDelete(req.params.id)
+        await redisClient.del("products")
+
+        if(!product)
+            return res.status(500).json({message: "Product not found with id value"})
         res.json(product)
         
     } catch (err) {
